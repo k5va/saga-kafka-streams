@@ -2,8 +2,7 @@ package by.javaguru.core.dto.events;
 
 import java.util.UUID;
 
-public class OrderCreatedEvent {
-    private UUID orderId;
+public class OrderCreatedEvent extends SagaEvent {
     private UUID customerId;
     private UUID productId;
     private Integer productQuantity;
@@ -12,18 +11,10 @@ public class OrderCreatedEvent {
     }
 
     public OrderCreatedEvent(UUID orderId, UUID customerId, UUID productId, Integer productQuantity) {
-        this.orderId = orderId;
+        super(orderId);
         this.customerId = customerId;
         this.productId = productId;
         this.productQuantity = productQuantity;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
     }
 
     public UUID getCustomerId() {

@@ -8,6 +8,8 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
+import java.util.UUID;
+
 @Configuration
 public class KafkaConfig {
 
@@ -17,7 +19,7 @@ public class KafkaConfig {
     private final static Integer TOPIC_PARTITIONS=3;
 
     @Bean
-    KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> producerFactory) {
+    KafkaTemplate<UUID, Object> kafkaTemplate(ProducerFactory<UUID, Object> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
 

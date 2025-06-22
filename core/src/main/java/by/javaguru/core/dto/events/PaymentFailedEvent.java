@@ -2,8 +2,7 @@ package by.javaguru.core.dto.events;
 
 import java.util.UUID;
 
-public class PaymentFailedEvent {
-    private UUID orderId;
+public class PaymentFailedEvent extends SagaEvent {
     private UUID productId;
     private Integer productQuantity;
 
@@ -11,17 +10,9 @@ public class PaymentFailedEvent {
     }
 
     public PaymentFailedEvent(UUID orderId, UUID productId, Integer productQuantity) {
-        this.orderId = orderId;
+        super(orderId);
         this.productId = productId;
         this.productQuantity = productQuantity;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
     }
 
     public UUID getProductId() {

@@ -3,8 +3,7 @@ package by.javaguru.core.dto.events;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public class ProductReservedEvent {
-    private UUID orderId;
+public class ProductReservedEvent extends SagaEvent {
     private UUID productId;
     private BigDecimal productPrice;
     private Integer productQuantity;
@@ -13,18 +12,10 @@ public class ProductReservedEvent {
     }
 
     public ProductReservedEvent(UUID orderId, UUID productId, BigDecimal productPrice, Integer productQuantity) {
-        this.orderId = orderId;
+        super(orderId);
         this.productId = productId;
         this.productPrice = productPrice;
         this.productQuantity = productQuantity;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
     }
 
     public UUID getProductId() {

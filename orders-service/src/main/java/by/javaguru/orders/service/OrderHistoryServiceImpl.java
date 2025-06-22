@@ -4,7 +4,13 @@ import by.javaguru.core.types.OrderStatus;
 import by.javaguru.orders.dao.jpa.entity.OrderHistoryEntity;
 import by.javaguru.orders.dao.jpa.repository.OrderHistoryRepository;
 import by.javaguru.orders.dto.OrderHistory;
+import by.javaguru.orders.saga.SagaState;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StoreQueryParameters;
+import org.apache.kafka.streams.state.QueryableStoreTypes;
+import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.springframework.beans.BeanUtils;
+import org.springframework.kafka.config.StreamsBuilderFactoryBean;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
@@ -12,12 +18,16 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import static by.javaguru.orders.saga.OrderSagaTopology.SAGA_STATE_STORE;
+
 @Service
 public class OrderHistoryServiceImpl implements OrderHistoryService {
     private final OrderHistoryRepository orderHistoryRepository;
+    private final StreamsBuilderFactoryBean streamsBuilderFactoryBean;
 
-    public OrderHistoryServiceImpl(OrderHistoryRepository orderHistoryRepository) {
+    public OrderHistoryServiceImpl(OrderHistoryRepository orderHistoryRepository, StreamsBuilderFactoryBean streamsBuilderFactoryBean) {
         this.orderHistoryRepository = orderHistoryRepository;
+        this.streamsBuilderFactoryBean = streamsBuilderFactoryBean;
     }
 
     @Override
@@ -31,11 +41,20 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
 
     @Override
     public List<OrderHistory> findByOrderId(UUID orderId) {
-        var entities = orderHistoryRepository.findByOrderId(orderId);
-        return entities.stream().map(entity -> {
-            OrderHistory orderHistory = new OrderHistory();
-            BeanUtils.copyProperties(entity, orderHistory);
-            return orderHistory;
-        }).toList();
+        KafkaStreams kafkaStreams = streamsBuilderFactoryBean.getKafkaStreams();
+
+        ReadOnlyKeyValueStore<UUID, SagaState> sagaStore =
+                kafkaStreams.store(StoreQueryParameters.fromNameAndType(
+                        SAGA_STATE_STORE,
+                        QueryableStoreTypes.keyValueStore()
+                ));
+
+        SagaState sagaState = sagaStore.get(orderId);
+        OrderHistory orderHistory = new OrderHistory();
+        orderHistory.setOrderId(orderId);
+        orderHistory.setStatus(sagaState.getStatus());
+
+        return List.of(orderHistory);
+
     }
 }

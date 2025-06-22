@@ -16,11 +16,11 @@ import java.util.UUID;
 @Service
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<UUID, Object> kafkaTemplate;
     private final String ordersEventsTopicName;
 
     public OrderServiceImpl(OrderRepository orderRepository,
-                            KafkaTemplate<String, Object> kafkaTemplate,
+                            KafkaTemplate<UUID, Object> kafkaTemplate,
                             @Value("${orders.events.topic.name}") String ordersEventsTopicName) {
         this.orderRepository = orderRepository;
         this.kafkaTemplate = kafkaTemplate;
@@ -42,7 +42,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getProductId(),
                 order.getProductQuantity()
         );
-        kafkaTemplate.send(ordersEventsTopicName, placedOrder);
+        kafkaTemplate.send(ordersEventsTopicName, placedOrder.getOrderId(), placedOrder);
 
         return new Order(
                 entity.getId(),
@@ -59,7 +59,7 @@ public class OrderServiceImpl implements OrderService {
         orderEntity.setStatus(OrderStatus.APPROVED);
         orderRepository.save(orderEntity);
         OrderApprovedEvent orderApprovedEvent = new OrderApprovedEvent(orderId);
-        kafkaTemplate.send(ordersEventsTopicName, orderApprovedEvent);
+        kafkaTemplate.send(ordersEventsTopicName, orderId, orderApprovedEvent);
     }
 
     @Override

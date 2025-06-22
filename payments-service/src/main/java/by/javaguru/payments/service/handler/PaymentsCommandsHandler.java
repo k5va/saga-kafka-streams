@@ -15,17 +15,19 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 @KafkaListener(topics = "${payments.commands.topic.name}")
 public class PaymentsCommandsHandler {
 
     private final PaymentService paymentService;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<UUID, Object> kafkaTemplate;
     private final String paymentEventsTopicName;
 
     public PaymentsCommandsHandler(PaymentService paymentService,
-                                   KafkaTemplate<String, Object> kafkaTemplate,
+                                   KafkaTemplate<UUID, Object> kafkaTemplate,
                                    @Value("${payments.events.topic.name}") String paymentEventsTopicName) {
         this.paymentService = paymentService;
         this.kafkaTemplate = kafkaTemplate;
@@ -43,13 +45,13 @@ public class PaymentsCommandsHandler {
             Payment processedPayment = paymentService.process(payment);
             PaymentProcessedEvent paymentProcessedEvent = new PaymentProcessedEvent(processedPayment.getOrderId(),
                     processedPayment.getId());
-            kafkaTemplate.send(paymentEventsTopicName, paymentProcessedEvent);
+            kafkaTemplate.send(paymentEventsTopicName, command.getOrderId(), paymentProcessedEvent);
         } catch (CreditCardProcessorUnavailableException e) {
             logger.error(e.getLocalizedMessage(), e);
             PaymentFailedEvent paymentFailedEvent = new PaymentFailedEvent(command.getOrderId(),
                     command.getProductId(),
                     command.getProductQuantity());
-            kafkaTemplate.send(paymentEventsTopicName, paymentFailedEvent);
+            kafkaTemplate.send(paymentEventsTopicName, command.getOrderId(), paymentFailedEvent);
         }
     }
 }

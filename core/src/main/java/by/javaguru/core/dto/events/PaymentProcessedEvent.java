@@ -2,24 +2,15 @@ package by.javaguru.core.dto.events;
 
 import java.util.UUID;
 
-public class PaymentProcessedEvent {
-    private UUID orderId;
+public class PaymentProcessedEvent extends SagaEvent {
     private UUID paymentId;
 
     public PaymentProcessedEvent() {
     }
 
     public PaymentProcessedEvent(UUID orderId, UUID paymentId) {
-        this.orderId = orderId;
+        super(orderId);
         this.paymentId = paymentId;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
     }
 
     public UUID getPaymentId() {

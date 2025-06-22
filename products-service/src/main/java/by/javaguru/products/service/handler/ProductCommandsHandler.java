@@ -16,17 +16,19 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 @KafkaListener(topics = "${products.commands.topic.name}")
 public class ProductCommandsHandler {
 
     private final ProductService productService;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<UUID, Object> kafkaTemplate;
     private final String productEventsTopicName;
 
     public ProductCommandsHandler(ProductService productService,
-                                  KafkaTemplate<String, Object> kafkaTemplate,
+                                  KafkaTemplate<UUID, Object> kafkaTemplate,
                                   @Value("${products.events.topic.name}") String productEventsTopicName) {
         this.productService = productService;
         this.kafkaTemplate = kafkaTemplate;
@@ -43,14 +45,14 @@ public class ProductCommandsHandler {
                     command.getProductId(),
                     reservedProduct.getPrice(),
                     command.getProductQuantity());
-            kafkaTemplate.send(productEventsTopicName, productReservedEvent);
+            kafkaTemplate.send(productEventsTopicName, command.getOrderId(), productReservedEvent);
         } catch (Exception e) {
             logger.error(e.getLocalizedMessage(), e);
             ProductReservationFailedEvent productReservationFailedEvent =
                     new ProductReservationFailedEvent(command.getProductId(),
                             command.getOrderId(),
                             command.getProductQuantity());
-            kafkaTemplate.send(productEventsTopicName, productReservationFailedEvent);
+            kafkaTemplate.send(productEventsTopicName, command.getOrderId(), productReservationFailedEvent);
         }
     }
 
@@ -61,6 +63,6 @@ public class ProductCommandsHandler {
 
         ProductReservationCancelledEvent productReservationCancelledEvent =
                 new ProductReservationCancelledEvent(command.getProductId(), command.getOrderId());
-        kafkaTemplate.send(productEventsTopicName, productReservationCancelledEvent);
+        kafkaTemplate.send(productEventsTopicName, productReservationCancelledEvent.getOrderId(), productReservationCancelledEvent);
     }
 }

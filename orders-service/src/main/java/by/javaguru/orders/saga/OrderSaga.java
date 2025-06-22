@@ -11,7 +11,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-@Component
+//@Component
 @KafkaListener(topics = {
         "${orders.events.topic.name}",
         "${products.events.topic.name}",
