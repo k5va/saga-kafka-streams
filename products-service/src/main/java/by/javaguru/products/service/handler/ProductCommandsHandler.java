@@ -2,7 +2,7 @@ package by.javaguru.products.service.handler;
 
 import by.javaguru.core.dto.Product;
 import by.javaguru.core.dto.commands.CancelProductReservationCommand;
-import by.javaguru.core.dto.commands.ProductReservationCancelledEvent;
+import by.javaguru.core.dto.events.ProductReservationCancelledEvent;
 import by.javaguru.core.dto.commands.ReserveProductCommand;
 import by.javaguru.core.dto.events.ProductReservationFailedEvent;
 import by.javaguru.core.dto.events.ProductReservedEvent;

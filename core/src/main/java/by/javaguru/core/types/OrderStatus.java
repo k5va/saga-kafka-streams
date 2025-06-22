@@ -2,9 +2,11 @@ package by.javaguru.core.types;
 
 public enum OrderStatus {
     CREATED,
-    APPROVED,
     PRODUCT_RESERVED,
-    FAILED,
+    PRODUCT_RESERVATION_FAILED,
     PAYMENT_PROCESSED,
+    PAYMENT_FAILED,
+    APPROVED,
+    PRODUCT_RESERVATION_CANCELLED,
     REJECTED
 }

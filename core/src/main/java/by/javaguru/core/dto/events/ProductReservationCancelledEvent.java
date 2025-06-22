@@ -1,17 +1,16 @@
-package by.javaguru.core.dto.commands;
+package by.javaguru.core.dto.events;
 
 import java.util.UUID;
 
-public class ProductReservationCancelledEvent {
+public class ProductReservationCancelledEvent extends SagaEvent {
     private UUID productId;
-    private UUID orderId;
 
     public ProductReservationCancelledEvent() {
     }
 
     public ProductReservationCancelledEvent(UUID productId, UUID orderId) {
+        super(orderId);
         this.productId = productId;
-        this.orderId = orderId;
     }
 
     public UUID getProductId() {
@@ -20,13 +19,5 @@ public class ProductReservationCancelledEvent {
 
     public void setProductId(UUID productId) {
         this.productId = productId;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
     }
 }

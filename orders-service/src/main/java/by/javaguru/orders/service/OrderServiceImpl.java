@@ -3,6 +3,7 @@ package by.javaguru.orders.service;
 import by.javaguru.core.dto.Order;
 import by.javaguru.core.dto.events.OrderApprovedEvent;
 import by.javaguru.core.dto.events.OrderCreatedEvent;
+import by.javaguru.core.dto.events.OrderRejectedEvent;
 import by.javaguru.core.types.OrderStatus;
 import by.javaguru.orders.dao.jpa.entity.OrderEntity;
 import by.javaguru.orders.dao.jpa.repository.OrderRepository;
@@ -68,6 +69,8 @@ public class OrderServiceImpl implements OrderService {
         Assert.notNull(orderEntity, "No order found with id: " + orderId);
         orderEntity.setStatus(OrderStatus.REJECTED);
         orderRepository.save(orderEntity);
+        OrderRejectedEvent orderRejectedEvent = new OrderRejectedEvent(orderId);
+        kafkaTemplate.send(ordersEventsTopicName, orderId, orderRejectedEvent);
     }
 
 }

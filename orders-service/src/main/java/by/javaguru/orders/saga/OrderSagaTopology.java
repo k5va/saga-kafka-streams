@@ -1,12 +1,16 @@
 package by.javaguru.orders.saga;
 
 import by.javaguru.core.dto.commands.ApproveOrderCommand;
+import by.javaguru.core.dto.commands.CancelProductReservationCommand;
 import by.javaguru.core.dto.commands.ProcessPaymentCommand;
+import by.javaguru.core.dto.commands.RejectOrderCommand;
 import by.javaguru.core.dto.commands.ReserveProductCommand;
 import by.javaguru.core.dto.events.OrderApprovedEvent;
 import by.javaguru.core.dto.events.OrderCreatedEvent;
+import by.javaguru.core.dto.events.OrderRejectedEvent;
 import by.javaguru.core.dto.events.PaymentFailedEvent;
 import by.javaguru.core.dto.events.PaymentProcessedEvent;
+import by.javaguru.core.dto.events.ProductReservationCancelledEvent;
 import by.javaguru.core.dto.events.ProductReservationFailedEvent;
 import by.javaguru.core.dto.events.ProductReservedEvent;
 import by.javaguru.core.dto.events.SagaEvent;
@@ -119,19 +123,34 @@ public class OrderSagaTopology {
                                     if (event instanceof ProductReservedEvent) {
                                         return updateSagaState(currentState, OrderStatus.PRODUCT_RESERVED);
                                     } else if (event instanceof ProductReservationFailedEvent) {
-                                        return updateSagaState(currentState, OrderStatus.FAILED, "Inventory reservation failed: " + event.getOrderId());
+                                        return updateSagaState(currentState,
+                                                OrderStatus.PRODUCT_RESERVATION_FAILED,
+                                                "product reservation failed: " + event.getOrderId());
                                     }
                                     break;
                                 case PRODUCT_RESERVED:
                                     if (event instanceof PaymentProcessedEvent) {
                                         return updateSagaState(currentState, OrderStatus.PAYMENT_PROCESSED);
                                     } else if (event instanceof PaymentFailedEvent) {
-                                        return updateSagaState(currentState, OrderStatus.FAILED, "payment failed: " + event.getOrderId());
+                                        return updateSagaState(currentState,
+                                                OrderStatus.PAYMENT_FAILED,
+                                                "payment failed: " + event.getOrderId());
                                     }
                                     break;
                                 case PAYMENT_PROCESSED:
                                     if (event instanceof OrderApprovedEvent) {
                                         return updateSagaState(currentState, OrderStatus.APPROVED);
+                                    }
+                                    break;
+                                case PAYMENT_FAILED:
+                                    if (event instanceof ProductReservationCancelledEvent) {
+                                        return updateSagaState(currentState, OrderStatus.PRODUCT_RESERVATION_CANCELLED);
+                                    }
+                                    break;
+                                case PRODUCT_RESERVATION_CANCELLED:
+                                case PRODUCT_RESERVATION_FAILED:
+                                    if (event instanceof OrderRejectedEvent) {
+                                        return updateSagaState(currentState, OrderStatus.REJECTED);
                                     }
                                     break;
                                 case APPROVED:
@@ -186,6 +205,16 @@ public class OrderSagaTopology {
                             // Saga successfully completed
                             commandsToEmit.add(new ApproveOrderCommand(sagaState.getOrderId()));
                             break;
+                        case PAYMENT_FAILED:
+                            commandsToEmit.add(new CancelProductReservationCommand(sagaState.getProductId(),
+                                    sagaState.getOrderId(),
+                                    sagaState.getProductQuantity()));
+                            break;
+                        case PRODUCT_RESERVATION_FAILED:
+                        case PRODUCT_RESERVATION_CANCELLED:
+                            // Saga completed with failure
+                            commandsToEmit.add(new RejectOrderCommand(sagaState.getOrderId()));
+                            break;
                         default:
                             break;
                     }
@@ -200,13 +229,16 @@ public class OrderSagaTopology {
                 .to(paymentsCommandsTopic, Produced.with(keySerde, sagaCommandSerde));
 
         commandStream
-                .filter((key, command) -> command instanceof ReserveProductCommand)
+                .filter((key, command) ->
+                        command instanceof ReserveProductCommand ||
+                        command instanceof CancelProductReservationCommand)
                 .to(productsCommandsTopic, Produced.with(keySerde, sagaCommandSerde));
 
         commandStream
-                .filter((key, command) -> command instanceof ApproveOrderCommand)
+                .filter((key, command) ->
+                        command instanceof ApproveOrderCommand ||
+                        command instanceof RejectOrderCommand)
                 .to(ordersCommandsTopic, Produced.with(keySerde, sagaCommandSerde));
-
 
         return commandStream;
     }
