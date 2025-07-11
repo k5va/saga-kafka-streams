@@ -172,8 +172,7 @@ public class OrderSagaTopology {
     }
 
     @Bean
-    public KStream<UUID, Object> sagaCommandsStream(StreamsBuilder streamsBuilder,
-                                                    KTable<UUID, SagaState> sagaStateTable,
+    public KStream<UUID, Object> sagaCommandsStream(KTable<UUID, SagaState> sagaStateTable,
                                                     Serde<UUID> keySerde,
                                                     Serde<Object> sagaCommandSerde,
                                                     @Value("${orders.commands.topic.name}") String ordersCommandsTopic,
