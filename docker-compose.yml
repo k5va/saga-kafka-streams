@@ -5,6 +5,8 @@ services:
       - "16686:16686"
       - "4317:4317"
       - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
   kafka-1:
     image: 'bitnami/kafka:3.3.2'
     container_name: kafka-1

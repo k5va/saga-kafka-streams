@@ -24,15 +24,12 @@ public class KafkaConfig {
     @Value("${orders.commands.topic.name}")
     private String ordersCommandsTopicName;
 
-    private final static Integer TOPIC_REPLICATION_FACTOR=3;
-    private final static Integer TOPIC_PARTITIONS=3;
+    private final static Integer TOPIC_REPLICATION_FACTOR = 3;
+    private final static Integer TOPIC_PARTITIONS = 3;
 
     @Bean
     KafkaTemplate<UUID, Object> kafkaTemplate(ProducerFactory<UUID, Object> producerFactory) {
-        KafkaTemplate<UUID, Object> kafkaTemplate = new KafkaTemplate<>(producerFactory);
-        kafkaTemplate.setObservationEnabled(true);
-
-        return kafkaTemplate;
+        return new KafkaTemplate<>(producerFactory);
     }
 
     @Bean
@@ -40,8 +37,6 @@ public class KafkaConfig {
             ConsumerFactory<UUID, Object> consumerFactory) {
         ConcurrentKafkaListenerContainerFactory<UUID, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
-        factory.getContainerProperties().setObservationEnabled(true);
-
         return factory;
     }
 
