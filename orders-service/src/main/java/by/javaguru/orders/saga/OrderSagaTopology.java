@@ -171,7 +171,6 @@ public class OrderSagaTopology {
             log.info("Parent context {}", parentContext);
 
             startAndEndSpan(parentContext, String.format("%s publish", record.topic()));
-
             return record;
         }
 
@@ -179,7 +178,7 @@ public class OrderSagaTopology {
             Span span = traceContextExtractor.getOpenTelemetry().getTracer(TRACER_SCOPE_NAME)
                     .spanBuilder(spanName)
                     .setParent(parentContext)
-                    .setSpanKind(SpanKind.CONSUMER)
+                    .setSpanKind(SpanKind.PRODUCER)
                     .startSpan();
 
             span.end();
