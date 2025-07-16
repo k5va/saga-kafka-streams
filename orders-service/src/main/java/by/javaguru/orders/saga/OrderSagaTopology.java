@@ -16,18 +16,15 @@ import by.javaguru.core.dto.events.ProductReservedEvent;
 import by.javaguru.core.dto.events.SagaEvent;
 import by.javaguru.core.types.OrderStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerInterceptor;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -49,9 +46,6 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
-import org.apache.kafka.streams.processor.api.Processor;
-import org.apache.kafka.streams.processor.api.ProcessorContext;
-import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -60,7 +54,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.config.KafkaStreamsConfiguration;
 import org.springframework.kafka.support.serializer.JsonSerde;
-import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -231,7 +224,7 @@ public class OrderSagaTopology {
                                 return null;
                             }
 
-                            switch (currentState.getStatus()) {
+                            switch (currentState.status()) {
                                 case CREATED:
                                     if (event instanceof ProductReservedEvent) {
                                         return updateSagaState(currentState, OrderStatus.PRODUCT_RESERVED);
@@ -270,7 +263,7 @@ public class OrderSagaTopology {
                                 case REJECTED:
                                     return currentState;
                                 default:
-                                    log.warn("Unhandled event {} for saga {} in status {}", event.getClass().getSimpleName(), sagaId, currentState.getStatus());
+                                    log.warn("Unhandled event {} for saga {} in status {}", event.getClass().getSimpleName(), sagaId, currentState.status());
                                     break;
                             }
 
@@ -336,31 +329,31 @@ public class OrderSagaTopology {
                         return Collections.emptyList(); // Should be handled by aggregate, but good safeguard
                     }
 
-                    switch (sagaState.getStatus()) {
+                    switch (sagaState.status()) {
                         case CREATED:
-                            commandsToEmit.add(new ReserveProductCommand(sagaState.getProductId(),
-                                    sagaState.getProductQuantity(),
-                                    sagaState.getOrderId()));
+                            commandsToEmit.add(new ReserveProductCommand(sagaState.productId(),
+                                    sagaState.productQuantity(),
+                                    sagaState.orderId()));
                             break;
                         case PRODUCT_RESERVED:
-                            commandsToEmit.add(new ProcessPaymentCommand(sagaState.getOrderId(),
-                                    sagaState.getProductId(),
-                                    sagaState.getPrice(),
-                                    sagaState.getProductQuantity()));
+                            commandsToEmit.add(new ProcessPaymentCommand(sagaState.orderId(),
+                                    sagaState.productId(),
+                                    sagaState.price(),
+                                    sagaState.productQuantity()));
                             break;
                         case PAYMENT_PROCESSED:
                             // Saga successfully completed
-                            commandsToEmit.add(new ApproveOrderCommand(sagaState.getOrderId()));
+                            commandsToEmit.add(new ApproveOrderCommand(sagaState.orderId()));
                             break;
                         case PAYMENT_FAILED:
-                            commandsToEmit.add(new CancelProductReservationCommand(sagaState.getProductId(),
-                                    sagaState.getOrderId(),
-                                    sagaState.getProductQuantity()));
+                            commandsToEmit.add(new CancelProductReservationCommand(sagaState.productId(),
+                                    sagaState.orderId(),
+                                    sagaState.productQuantity()));
                             break;
                         case PRODUCT_RESERVATION_FAILED:
                         case PRODUCT_RESERVATION_CANCELLED:
                             // Saga completed with failure
-                            commandsToEmit.add(new RejectOrderCommand(sagaState.getOrderId()));
+                            commandsToEmit.add(new RejectOrderCommand(sagaState.orderId()));
                             break;
                         default:
                             break;
@@ -392,13 +385,24 @@ public class OrderSagaTopology {
 
 
     private SagaState updateSagaState(SagaState currentState, OrderStatus newStatus) {
-        currentState.setStatus(newStatus);
-        return currentState;
+        return new SagaState(
+            currentState.orderId(),
+            currentState.productId(),
+            currentState.productQuantity(),
+            currentState.price(),
+            newStatus,
+            currentState.errorMessage()
+        );
     }
 
     private SagaState updateSagaState(SagaState currentState, OrderStatus newStatus, String errorMessage) {
-        currentState.setStatus(newStatus);
-        currentState.setErrorMessage(errorMessage);
-        return currentState;
+        return new SagaState(
+            currentState.orderId(),
+            currentState.productId(),
+            currentState.productQuantity(),
+            currentState.price(),
+            newStatus,
+            errorMessage
+        );
     }
 }
