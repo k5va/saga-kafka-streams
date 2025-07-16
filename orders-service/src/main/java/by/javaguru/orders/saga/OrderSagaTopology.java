@@ -15,14 +15,10 @@ import by.javaguru.core.dto.events.ProductReservationFailedEvent;
 import by.javaguru.core.dto.events.ProductReservedEvent;
 import by.javaguru.core.dto.events.SagaEvent;
 import by.javaguru.core.types.OrderStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.KStream;
@@ -31,17 +27,13 @@ import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
-import org.springframework.kafka.config.KafkaStreamsConfiguration;
-import org.springframework.kafka.support.serializer.JsonSerde;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -53,48 +45,15 @@ public class OrderSagaTopology {
 
     public static final String SAGA_STATE_STORE = "order-saga-state-store";
 
-    @Bean
-    public Serde<SagaEvent> sagaEventSerde(ObjectMapper objectMapper) {
-        return new JsonSerde<>(SagaEvent.class, objectMapper);
-    }
-
-    @Bean
-    public Serde<Object> sagaCommandSerde(ObjectMapper objectMapper) {
-        return new JsonSerde<>(Object.class, objectMapper);
-    }
-
-    @Bean
-    public Serde<SagaState> sagaStateSerde(ObjectMapper objectMapper) {
-        return new JsonSerde<>(SagaState.class, objectMapper);
-    }
-
-    @Bean
-    public Serde<UUID> keySerde() {
-        return Serdes.UUID();
-    }
-
-    @Bean
-    public KafkaStreamsConfiguration defaultKafkaStreamsConfig(KafkaProperties kafkaProperties) {
-
-        var props = new HashMap<String, Object>(kafkaProperties.getStreams().getProperties());
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "orders-saga");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.StringSerde.class);
-        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
-        props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG,
-                LogAndContinueExceptionHandler.class);
-
-        return new KafkaStreamsConfiguration(props);
-    }
 
     @Bean
     public KTable<UUID, SagaState> sagaStateTable(StreamsBuilder streamsBuilder,
-                                              Serde<UUID> keySerde,
-                                              Serde<SagaEvent> sagaEventSerde,
-                                              Serde<SagaState> sagaStateSerde,
-                                              @Value("${orders.events.topic.name}") String orderEventsTopic,
-                                              @Value("${products.events.topic.name}") String productsEventsTopic,
-                                              @Value("${payments.events.topic.name}") String paymentsEventsTopic) {
+                                                  Serde<UUID> keySerde,
+                                                  Serde<SagaEvent> sagaEventSerde,
+                                                  Serde<SagaState> sagaStateSerde,
+                                                  @Value("${orders.events.topic.name}") String orderEventsTopic,
+                                                  @Value("${products.events.topic.name}") String productsEventsTopic,
+                                                  @Value("${payments.events.topic.name}") String paymentsEventsTopic) {
 
         KStream<UUID, SagaEvent> sagaEvents = streamsBuilder.stream(
                 Set.of(orderEventsTopic, productsEventsTopic, paymentsEventsTopic),
@@ -118,7 +77,7 @@ public class OrderSagaTopology {
                                 return null;
                             }
 
-                            switch (currentState.getStatus()) {
+                            switch (currentState.status()) {
                                 case CREATED:
                                     if (event instanceof ProductReservedEvent) {
                                         return updateSagaState(currentState, OrderStatus.PRODUCT_RESERVED);
@@ -157,7 +116,7 @@ public class OrderSagaTopology {
                                 case REJECTED:
                                     return currentState;
                                 default:
-                                    log.warn("Unhandled event {} for saga {} in status {}", event.getClass().getSimpleName(), sagaId, currentState.getStatus());
+                                    log.warn("Unhandled event {} for saga {} in status {}", event.getClass().getSimpleName(), sagaId, currentState.status());
                                     break;
                             }
 
@@ -170,6 +129,7 @@ public class OrderSagaTopology {
 
         return sagaStates;
     }
+
 
     @Bean
     public KStream<UUID, Object> sagaCommandsStream(KTable<UUID, SagaState> sagaStateTable,
@@ -188,31 +148,31 @@ public class OrderSagaTopology {
                         return Collections.emptyList(); // Should be handled by aggregate, but good safeguard
                     }
 
-                    switch (sagaState.getStatus()) {
+                    switch (sagaState.status()) {
                         case CREATED:
-                            commandsToEmit.add(new ReserveProductCommand(sagaState.getProductId(),
-                                    sagaState.getProductQuantity(),
-                                    sagaState.getOrderId()));
+                            commandsToEmit.add(new ReserveProductCommand(sagaState.productId(),
+                                    sagaState.productQuantity(),
+                                    sagaState.orderId()));
                             break;
                         case PRODUCT_RESERVED:
-                            commandsToEmit.add(new ProcessPaymentCommand(sagaState.getOrderId(),
-                                    sagaState.getProductId(),
-                                    sagaState.getPrice(),
-                                    sagaState.getProductQuantity()));
+                            commandsToEmit.add(new ProcessPaymentCommand(sagaState.orderId(),
+                                    sagaState.productId(),
+                                    sagaState.price(),
+                                    sagaState.productQuantity()));
                             break;
                         case PAYMENT_PROCESSED:
                             // Saga successfully completed
-                            commandsToEmit.add(new ApproveOrderCommand(sagaState.getOrderId()));
+                            commandsToEmit.add(new ApproveOrderCommand(sagaState.orderId()));
                             break;
                         case PAYMENT_FAILED:
-                            commandsToEmit.add(new CancelProductReservationCommand(sagaState.getProductId(),
-                                    sagaState.getOrderId(),
-                                    sagaState.getProductQuantity()));
+                            commandsToEmit.add(new CancelProductReservationCommand(sagaState.productId(),
+                                    sagaState.orderId(),
+                                    sagaState.productQuantity()));
                             break;
                         case PRODUCT_RESERVATION_FAILED:
                         case PRODUCT_RESERVATION_CANCELLED:
                             // Saga completed with failure
-                            commandsToEmit.add(new RejectOrderCommand(sagaState.getOrderId()));
+                            commandsToEmit.add(new RejectOrderCommand(sagaState.orderId()));
                             break;
                         default:
                             break;
@@ -244,13 +204,24 @@ public class OrderSagaTopology {
 
 
     private SagaState updateSagaState(SagaState currentState, OrderStatus newStatus) {
-        currentState.setStatus(newStatus);
-        return currentState;
+        return new SagaState(
+            currentState.orderId(),
+            currentState.productId(),
+            currentState.productQuantity(),
+            currentState.price(),
+            newStatus,
+            currentState.errorMessage()
+        );
     }
 
     private SagaState updateSagaState(SagaState currentState, OrderStatus newStatus, String errorMessage) {
-        currentState.setStatus(newStatus);
-        currentState.setErrorMessage(errorMessage);
-        return currentState;
+        return new SagaState(
+            currentState.orderId(),
+            currentState.productId(),
+            currentState.productQuantity(),
+            currentState.price(),
+            newStatus,
+            errorMessage
+        );
     }
 }

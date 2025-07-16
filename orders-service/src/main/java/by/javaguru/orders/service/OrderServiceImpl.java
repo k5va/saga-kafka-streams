@@ -7,6 +7,8 @@ import by.javaguru.core.dto.events.OrderRejectedEvent;
 import by.javaguru.core.types.OrderStatus;
 import by.javaguru.orders.dao.jpa.entity.OrderEntity;
 import by.javaguru.orders.dao.jpa.repository.OrderRepository;
+import by.javaguru.orders.dto.CreateOrderRequest;
+import by.javaguru.orders.dto.CreateOrderResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -29,28 +31,29 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Order placeOrder(Order order) {
+    public CreateOrderResponse placeOrder(CreateOrderRequest order) {
         OrderEntity entity = new OrderEntity();
-        entity.setCustomerId(order.getCustomerId());
-        entity.setProductId(order.getProductId());
-        entity.setProductQuantity(order.getProductQuantity());
+        entity.setCustomerId(order.customerId());
+        entity.setProductId(order.productId());
+        entity.setProductQuantity(order.productQuantity());
         entity.setStatus(OrderStatus.CREATED);
         orderRepository.save(entity);
 
         OrderCreatedEvent placedOrder = new OrderCreatedEvent(
                 entity.getId(),
                 entity.getCustomerId(),
-                order.getProductId(),
-                order.getProductQuantity()
+                order.productId(),
+                order.productQuantity()
         );
         kafkaTemplate.send(ordersEventsTopicName, placedOrder.getOrderId(), placedOrder);
 
-        return new Order(
+        return new CreateOrderResponse(
                 entity.getId(),
                 entity.getCustomerId(),
                 entity.getProductId(),
                 entity.getProductQuantity(),
-                entity.getStatus());
+                entity.getStatus()
+        );
     }
 
     @Override

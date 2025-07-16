@@ -42,3 +42,21 @@ payments:
   events:
     topic:
       name: payments-events
+
+management:
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+otel:
+  metrics:
+    exporter: none
+  logs:
+    exporter: none
+  propagators:
+    - tracecontext
+  exporter:
+    otlp:
+      traces:
+        endpoint: http://localhost:4318/v1/traces

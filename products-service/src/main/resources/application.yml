@@ -44,6 +44,15 @@ management:
     enabled: true
     sampling:
       probability: 1.0
-  otlp:
-    tracing:
-      endpoint: http://localhost:4318/v1/traces
+
+otel:
+  metrics:
+    exporter: none
+  logs:
+    exporter: none
+  propagators:
+    - tracecontext
+  exporter:
+    otlp:
+      traces:
+        endpoint: http://localhost:4318/v1/traces
