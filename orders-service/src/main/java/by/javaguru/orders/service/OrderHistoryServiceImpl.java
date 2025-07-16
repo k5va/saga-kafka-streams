@@ -4,12 +4,12 @@ import by.javaguru.core.types.OrderStatus;
 import by.javaguru.orders.dao.jpa.entity.OrderHistoryEntity;
 import by.javaguru.orders.dao.jpa.repository.OrderHistoryRepository;
 import by.javaguru.orders.dto.OrderHistory;
+import by.javaguru.orders.dto.OrderHistoryResponse;
 import by.javaguru.orders.saga.SagaState;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StoreQueryParameters;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
-import org.springframework.beans.BeanUtils;
 import org.springframework.kafka.config.StreamsBuilderFactoryBean;
 import org.springframework.stereotype.Service;
 
@@ -40,7 +40,7 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
     }
 
     @Override
-    public List<OrderHistory> findByOrderId(UUID orderId) {
+    public List<OrderHistoryResponse> findByOrderId(UUID orderId) {
         KafkaStreams kafkaStreams = streamsBuilderFactoryBean.getKafkaStreams();
 
         ReadOnlyKeyValueStore<UUID, SagaState> sagaStore =
@@ -50,11 +50,18 @@ public class OrderHistoryServiceImpl implements OrderHistoryService {
                 ));
 
         SagaState sagaState = sagaStore.get(orderId);
-        OrderHistory orderHistory = new OrderHistory();
-        orderHistory.setOrderId(orderId);
-        orderHistory.setStatus(sagaState.getStatus());
+        OrderHistory orderHistory = new OrderHistory(
+            null, // id is not set in the original code
+            orderId,
+            sagaState.getStatus(),
+            null // createdAt is not set in the original code
+        );
 
-        return List.of(orderHistory);
-
+        return List.of(new OrderHistoryResponse(
+                orderHistory.id(),
+                orderHistory.orderId(),
+                orderHistory.status(),
+                orderHistory.createdAt()
+        ));
     }
 }

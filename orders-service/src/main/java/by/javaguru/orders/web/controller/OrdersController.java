@@ -1,13 +1,11 @@
 package by.javaguru.orders.web.controller;
 
-import by.javaguru.core.dto.Order;
 import by.javaguru.orders.dto.CreateOrderRequest;
 import by.javaguru.orders.dto.CreateOrderResponse;
 import by.javaguru.orders.dto.OrderHistoryResponse;
 import by.javaguru.orders.service.OrderHistoryService;
 import by.javaguru.orders.service.OrderService;
 import jakarta.validation.Valid;
-import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,22 +27,12 @@ public class OrdersController {
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     public CreateOrderResponse placeOrder(@RequestBody @Valid CreateOrderRequest request) {
-        var order = new Order();
-        BeanUtils.copyProperties(request, order);
-        Order createdOrder = orderService.placeOrder(order);
-
-        var response = new CreateOrderResponse();
-        BeanUtils.copyProperties(createdOrder, response);
-        return response;
+        return orderService.placeOrder(request);
     }
 
     @GetMapping("/{orderId}/history")
     @ResponseStatus(HttpStatus.OK)
     public List<OrderHistoryResponse> getOrderHistory(@PathVariable UUID orderId) {
-        return orderHistoryService.findByOrderId(orderId).stream().map(orderHistory -> {
-            OrderHistoryResponse orderHistoryResponse = new OrderHistoryResponse();
-            BeanUtils.copyProperties(orderHistory, orderHistoryResponse);
-            return orderHistoryResponse;
-        }).toList();
+        return orderHistoryService.findByOrderId(orderId);
     }
 }
