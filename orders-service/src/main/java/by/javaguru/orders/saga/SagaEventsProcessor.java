@@ -11,6 +11,7 @@ import by.javaguru.core.dto.events.ProductReservedEvent;
 import by.javaguru.core.dto.events.SagaEvent;
 import by.javaguru.core.types.OrderStatus;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.utils.Bytes;
@@ -31,28 +32,36 @@ import java.util.UUID;
 
 @Getter
 @Slf4j
+@RequiredArgsConstructor
 @Component
 public class SagaEventsProcessor {
     public static final String SAGA_STATE_STORE = "order-saga-state-store";
 
+    private final Serde<UUID> keySerde;
+    private final Serde<SagaEvent> sagaEventSerde;
+    private final Serde<SagaState> sagaStateSerde;
+
+    @Value("${orders.events.topic.name}")
+    private String orderEventsTopic;
+    @Value("${products.events.topic.name}")
+    private String productsEventsTopic;
+    @Value("${payments.events.topic.name}")
+    private String paymentsEventsTopic;
+
     private KTable<UUID, SagaState> sagaStateTable;
 
     @Autowired
-    void buildPipeline(StreamsBuilder streamsBuilder,
-                       Serde<UUID> keySerde,
-                       Serde<SagaEvent> sagaEventSerde,
-                       Serde<SagaState> sagaStateSerde,
-                       @Value("${orders.events.topic.name}") String orderEventsTopic,
-                       @Value("${products.events.topic.name}") String productsEventsTopic,
-                       @Value("${payments.events.topic.name}") String paymentsEventsTopic) {
-
+    void buildPipeline(StreamsBuilder streamsBuilder) {
         KStream<UUID, SagaEvent> sagaEvents = streamsBuilder.stream(
                 Set.of(orderEventsTopic, productsEventsTopic, paymentsEventsTopic),
                 Consumed.with(keySerde, sagaEventSerde)
         );
 
         this.sagaStateTable = sagaEvents
-                .peek((uuid, sagaEvent) -> log.info("Received event {} for orderId: {}", sagaEvent, sagaEvent.getOrderId()))
+                .peek((uuid, sagaEvent) -> log.info("Received event {} for orderId: {}",
+                        sagaEvent,
+                        sagaEvent.getOrderId())
+                )
                 .groupByKey(Grouped.with(keySerde, sagaEventSerde))
                 .aggregate(
                         () -> null, // initial state

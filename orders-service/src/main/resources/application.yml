@@ -28,7 +28,6 @@ spring:
         spring.json.trusted.packages: by.javaguru.core.*
     streams:
       properties:
-        # commit.interval.ms: 100
         processing.guarantee: exactly_once_v2
 
 orders:
@@ -75,7 +74,4 @@ otel:
 
 logging:
   level:
-    io.opentelemetry: trace
-#    io.opentelemetry.exporter: DEBUG
-#    io.opentelemetry.exporter.otlp: DEBUG
-#    io.opentelemetry.sdk.trace: DEBUG
+    io.opentelemetry: debug
