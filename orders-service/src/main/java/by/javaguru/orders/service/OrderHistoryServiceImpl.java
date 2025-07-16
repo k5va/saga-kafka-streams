@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
 
-import static by.javaguru.orders.saga.OrderSagaTopology.SAGA_STATE_STORE;
+import static by.javaguru.orders.saga.SagaEventsProcessor.SAGA_STATE_STORE;
 
 @RequiredArgsConstructor
 @Service
